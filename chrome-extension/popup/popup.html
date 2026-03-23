@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jira Task Finder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔗 Jira Task Finder</h1>
+      <a href="#" id="settings-btn" title="Settings">⚙️</a>
+    </header>
+
+    <div class="search-section">
+      <div class="search-group">
+        <input
+          type="text"
+          id="task-input"
+          placeholder="Task ID (e.g., SD-136249)"
+          autocomplete="off"
+        >
+        <button id="search-btn">🔍 Search</button>
+      </div>
+      <div id="current-task" class="current-task"></div>
+    </div>
+
+    <div id="results" class="results">
+      <!-- Results will be displayed here -->
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+      <span class="spinner"></span>
+      <p>Searching...</p>
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <footer>
+      <p class="version">v0.1.0</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
