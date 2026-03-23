@@ -238,6 +238,104 @@ curl -u "$JIRA_USERNAME:$JIRA_API_TOKEN" \
 
 Detaylı API dokümantasyonu için bkz: [references/api_reference.md](references/api_reference.md)
 
+Benzerlik skorunun nasıl hesaplandığı için bkz: [references/similarity_algorithm.md](references/similarity_algorithm.md)
+
+Slack API entegrasyonu için bkz: [references/slack_api_reference.md](references/slack_api_reference.md)
+
+## Step 8: Slack Token Doğrulama (İsteğe Bağlı)
+
+⚠️ **Bu adım, SLACK_USER_TOKEN mcp.json'da tanımlı ve geçerli ise çalışır.**
+
+1. `mcp.json`'dan `SLACK_USER_TOKEN` değerini oku
+2. Token'ın `xoxp-` prefix'iyle başladığını kontrol et
+   - Eğer `xoxb-` ile başlıyorsa: ⚠️ Uyarı ver - "Bot token (xoxb-) yerine User token (xoxp-) kullanıldı. search.messages çalışmaz"
+   - Eğer tanımlı değilse: "Slack token bulunamadı, Slack araması atlanıyor" mesajı ver ve Step 9'u atla
+3. Token geçerliliğini test et:
+```bash
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/auth.test"
+```
+4. Response:
+   - `ok: true` → Devam et Step 9'a
+   - `ok: false, error: "invalid_auth"` → "Slack token geçersiz veya süresi dolmuş" uyarısı, Step 9'u atla
+   - `ok: false, error: "not_allowed_token_type"` → "Bot token kullanılmış, User token gerekli" uyarısı, Step 9'u atla
+   - `ok: false, error: "missing_scope"` → "Token'da search:read scope yok" uyarısı, Step 9'u atla
+
+## Step 9: Slack Araması - İki Sorgu Yapma
+
+⚠️ **Bu adım, Step 8 başarılı olduysa çalışır.**
+
+Slack'te iki arama yapılır:
+
+### 9a: Direct Task ID Araması
+```bash
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/search.messages?query={taskId}&count=20&sort=timestamp&sort_dir=desc"
+```
+Örnek: `query=SD-135447`
+
+**Sonuç türü:** `Direct Mention` (task ID'nin exact olarak geçtiği mesajlar)
+
+### 9b: Keyword Araması
+Task summary'den entity weighting > 2 olan kelimeleri çıkar:
+
+```python
+entity_weights = {
+    'coupon': 3, 'architect': 3, 'wrong': 3, 'crash': 3,
+    'template': 2, 'inapp': 2, 'journey': 2, 'event': 2,
+    'mobile': 2, 'web': 2, 'android': 2, 'bug': 2,
+    # ... diğerleri
+}
+
+# Task: "Smart Design Creator Brand Settings BE Prompt Changes"
+# Çıkarılacak kelimeler: "smart" (2), "design" (2), "creator" (2), "brand" (2)
+# Arama sorgusu: "Smart Design Creator Brand"
+```
+
+**Kural:** Summary'de 3'ten az yüksek ağırlıklı kelime varsa bu arama atlanır.
+
+```bash
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/search.messages?query=Smart+Design+Creator+Brand&count=10&sort=score&sort_dir=desc"
+```
+
+**Sonuç türü:** `Keyword Match` (summary'deki kelimelerin geçtiği mesajlar)
+
+### 9c: Rate Limiting
+- İki arama arasında **1 saniye bekle** (Slack Tier 2: 20 requests/minute)
+- `rate_limited` hatası gelirse ilgili aramanın sonuçlarını atla ve devam et
+
+### 9d: Sonuç Filtreleme
+Slack mesajlarını şu kriterlere göre filtrele:
+- `total > 0` kontrolü yapılmış mı
+- **Direct mention araması:** Tüm eşleşmeler gösterilir (max 10 mesaj)
+- **Keyword match araması:** En fazla 5 mesaj (duplikasyon kontrolü yapıldıktan sonra)
+- Duplikasyon kontrolü: Aynı mesaj her iki aramada da gelmişse, Direct Mention olarak işaretle
+
+## Step 10: Slack Sonuçlarını Tablo Olarak Göster
+
+Slack sonuçları, Jira ilişkili tasklar tablosundan **ayrı** bir bölüm olarak gösterilir.
+
+Tablo formatı:
+
+```
+## Slack Mentions ({taskId})
+
+| Kanal | Mesaj Özeti | Gönderen | Tarih | Tür | Link |
+|-------|-------------|----------|-------|-----|------|
+| #team-engineering | "SD-135447 fix'i review'a açtım..." | furkan.korkmaz | 2026-03-20 | Direct Mention | [link] |
+| #product-updates | "Smart Design Creator brand ayarları..." | ayse.yilmaz | 2026-03-18 | Keyword Match | [link] |
+| #releases | "SD-135447 sprint'e alındı" | mehmet.demir | 2026-03-15 | Direct Mention | [link] |
+```
+
+### Tablo Detayları
+- **Kanal:** Slack channel adı (#team-engineering)
+- **Mesaj Özeti:** Mesajın ilk 50-60 karakteri (... ile sonlandırıl)
+- **Gönderen:** Slack username'i (furkan.korkmaz)
+- **Tarih:** ISO format tarihi (2026-03-20)
+- **Tür:** "Direct Mention" veya "Keyword Match"
+- **Link:** Slack message permalink (p1708123456789012 formatı)
+
 ## Örnek Kullanım
 
 Kullanıcı: "SD-135447 taskı ile ilişkili tüm taskları göster"
@@ -252,9 +350,14 @@ Claude:
 7. Aynı projedeki son 50 taskı çeker
 8. Benzerlik analizi yapar (AI-Summary, AI-Description)
 9. Commentlerdeki task referanslarını bulur (AI-Comment)
-10. Tüm sonuçları birleştirip tablo olarak sunar
+10. ✨ **[YENİ]** Slack token doğrulama (Step 8)
+11. ✨ **[YENİ]** Slack'te task ID ve keyword araması yapılır (Step 9)
+12. ✨ **[YENİ]** Slack sonuçlarını ayrı tablo olarak sunar (Step 10)
+13. Tüm sonuçları birleştirip gösterir
 
 ## Çıktı Formatı
+
+### Jira İlişkili Tasklar
 
 ```
 | Task Key | Summary | Status | Type | Relation Type | Score |
@@ -266,9 +369,36 @@ Claude:
 | PROJ-789 | Mentioned in comments | To Do | Bug | AI-Comment | - |
 ```
 
+### Slack Mentions (Slack Token tanımlıysa)
+
+✨ **YENİ BÖLÜM**
+
+```
+| Kanal | Mesaj Özeti | Gönderen | Tarih | Tür |
+|-------|-------------|----------|-------|-----|
+| #team-engineering | "SD-135447 fix'i review'a açtım, bakabilir misiniz?" | furkan.korkmaz | 2026-03-20 | Direct Mention |
+| #product-updates | "Smart Design Creator brand ayarları tamamlandı" | ayse.yilmaz | 2026-03-18 | Keyword Match |
+| #releases | "SD-135447 bu sprint'e alındı" | mehmet.demir | 2026-03-15 | Direct Mention |
+```
+
 ## Verification
 
+### Jira İşlemleri
 1. Bir task ID verildiğinde tüm ilişki türlerini listele
 2. Description benzerliği doğru çalışıyor mu kontrol et
 3. Commentlerdeki task referansları bulunuyor mu kontrol et
 4. Benzerlik skorları makul aralıkta mı (0-1 arası)
+
+### Slack İntegrasyonu (YENİ)
+5. Slack token mcp.json'da tanımlı mı?
+6. Token doğrulama (`auth.test`) başarılı mı?
+   - ✅ `ok: true` dönüyor mu?
+   - ❌ Bot token (xoxb-) girildi mi? → Uyarı verildi mi?
+   - ❌ Token geçersiz mi? → Hata mesajı verildi mi?
+7. Direct mention araması (task ID) çalışıyor mu?
+8. Keyword araması entity filtresiyle doğru çalışıyor mu?
+   - Entity weights >= 2 olan kelimeleri seçiyor mu?
+   - Max 5 kelime kullanıyor mu?
+9. Rate limit (20 req/min) aşılmıyor mu?
+10. Slack sonuçları ayrı bölüm olarak (Jira tablosundan ayrı) gösteriliyor mu?
+11. Duplikasyon kontrolü yapılıyor mu? (aynı mesaj iki aramada da gelmişse Direct Mention olarak işaretleniyor mu?)

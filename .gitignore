@@ -1,0 +1,15 @@
+# Credentials & Environment
+mcp.json
+
+# Local development
+.DS_Store
+*.log
+node_modules/
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
