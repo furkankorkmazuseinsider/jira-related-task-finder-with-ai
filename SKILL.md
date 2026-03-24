@@ -303,48 +303,17 @@ Max Results: 10 messages
 Sorting: timestamp descending
 ```
 
-### 9b: Keyword Araması (İki Path)
-
-**9b-i: Global Workspace Search (ekb Plugin)**
+### 9b: Keyword Araması (ekb Plugin)
 ```
 Query: "{keyword1} {keyword2} {keyword3}"  (entity weight >= 2)
 Result Type: "Keyword Match"
 Max Results: 5 messages
 Sorting: relevance score descending
-API: search.messages (workspace-wide)
-```
 
-**9b-ii: High-Relevance Channel Search (Optional)**
-⚠️ **search.messages API'nin sınırlaması:** Kanal filtresi desteklenmez — tüm workspace'de arar.
-
-Çözüm: High-relevance channels için `conversations.history` endpoint kullanılır:
-```
-Target Channels:
-- oxt-scalability-qa-support
-- oxt-personalization-dev
-- personalization-bugs
-- personalization-features
-
-Query: "{taskId}" | "{keywords}"
-Method: Channel history iterate + client-side filter
-Result Type: "Channel Direct Mention" / "Channel Keyword Match"
-```
-
-**Execution:**
-```python
-# High-relevance channels listesi
-important_channels = [
-    "oxt-scalability-qa-support",
-    "oxt-personalization-dev",
-    "personalization-bugs"
-]
-
-# Her kanal için history çek
-for channel_name in important_channels:
-    # 1. Kanal ID'sini al (cached)
-    # 2. conversations.history çek (limit=100)
-    # 3. Task ID veya keywords ile filter yap
-    # 4. Bulunmuş sonuçları ekle (search.messages'dan dedup)
+✨ ekb Plugin Features:
+- Public channels araması
+- Private channels araması (token-free, ekb credentials ile)
+- Duplikasyon otomatik kontrol
 ```
 
 ### 9c: Duplikasyon Kontrolü (ekb)
@@ -439,17 +408,15 @@ Claude:
 3. Commentlerdeki task referansları bulunuyor mu kontrol et
 4. Benzerlik skorları makul aralıkta mı (0-1 arası)
 
-### Slack İntegrasyonu (YENİ)
+### Slack İntegrasyonu (ekb Plugin)
 5. ekb plugin active ve token-free authentication çalışıyor mu?
-6. Global workspace search (search.messages) çalışıyor mu?
+6. Workspace search (public + private channels) çalışıyor mu?
    - [ ] Task ID araması sonuç dönüyor mu?
    - [ ] Keyword araması sonuç dönüyor mu?
-7. **[YENİ]** Channel-specific search (conversations.history) çalışıyor mu?
-   - [ ] oxt-scalability-qa-support kanalında task bulunuyor mu?
-   - [ ] High-relevance channels'da araması sonuç dönüyor mu?
+   - [ ] Private channels (oxt-scalability-qa-support, vb.) araması çalışıyor mu?
    - [ ] Duplikasyon kontrolü yapılıyor mu?
-8. Slack sonuçları ayrı bölüm olarak gösteriliyor mu?
-9. Rate limiting aşılmıyor mu?
+7. Slack sonuçları ayrı bölüm olarak gösteriliyor mu?
+8. Rate limiting aşılmıyor mu?
    - ✅ `ok: true` dönüyor mu?
    - ❌ Bot token (xoxb-) girildi mi? → Uyarı verildi mi?
    - ❌ Token geçersiz mi? → Hata mesajı verildi mi?

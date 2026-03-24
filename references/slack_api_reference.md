@@ -92,7 +92,7 @@ GET https://slack.com/api/search.messages
 
 ---
 
-## Channel History Endpoint (Channel-Specific Search)
+## Channel History Endpoint (Reference)
 
 ### Endpoint: conversations.history
 
@@ -100,7 +100,7 @@ GET https://slack.com/api/search.messages
 GET https://slack.com/api/conversations.history
 ```
 
-**Avantaj:** Belirli bir kanal'daki TÜM mesajları arayabiliriz (search.messages'ın workspace-wide sınırlamasını aşarız).
+**Note:** ekb plugin bu endpoint'i otomatik olarak kullanıyor (private channels için). Manual implementation gereken durumlar için referans olarak tutulmuştur.
 
 ### Query Parameters
 
