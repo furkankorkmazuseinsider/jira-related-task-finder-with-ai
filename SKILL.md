@@ -240,8 +240,6 @@ Detaylı API dokümantasyonu için bkz: [references/api_reference.md](references
 
 Benzerlik skorunun nasıl hesaplandığı için bkz: [references/similarity_algorithm.md](references/similarity_algorithm.md)
 
-Slack API entegrasyonu için bkz: [references/slack_api_reference.md](references/slack_api_reference.md)
-
 ## Step 8: Engineering Knowledge Base Plugin ile Slack Araması
 
 ✨ **Bu adım, ekb plugin enabled ise otomatik olarak çalışır. Token gerekmiyor!**

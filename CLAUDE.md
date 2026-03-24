@@ -49,12 +49,10 @@ Claude otomatik olarak:
 .
 ├── CLAUDE.md                          # Bu dosya (Claude Code rehberi)
 ├── SKILL.md                          # Skill tanımı ve workflow
-├── mcp.json                          # MCP server config (Jira + Slack credentials)
-├── README.md                         # Başlık (genişletilebilir)
+├── mcp.json                          # MCP server config (credentials)
 └── references/
     ├── api_reference.md              # Jira API endpoint referansı
-    ├── similarity_algorithm.md       # Benzerlik algoritması detayları
-    └── slack_api_reference.md        # ✨ [YENİ] Slack API endpoint referansı
+    └── similarity_algorithm.md       # Benzerlik algoritması detayları
 ```
 
 ---
@@ -206,14 +204,6 @@ cat .gitignore | grep mcp.json
 - Response format'ları
 - Authentication
 - Rate limiting
-
-### references/slack_api_reference.md ✨ **[YENİ]**
-- Slack User Token kurulumu
-- `search.messages` endpoint (parametreler, response şeması)
-- `auth.test` endpoint (token doğrulama)
-- Rate Limiting (Tier 2: 20 req/min)
-- Error Codes (not_allowed_token_type, missing_scope, vb.)
-- Python örnekleri (token doğrulama, arama, duplikasyon kontrolü)
 
 ### references/similarity_algorithm.md
 - Benzerlik skorunun nasıl hesaplandığı
@@ -504,10 +494,8 @@ docs: update threshold recommendations
 - **Status:** Production-ready (Jira + Slack)
 - **License:** Internal Use Only
 
-### Son Güncellemeler (2026-03-23)
-- ✨ Slack `search.messages` entegrasyonu eklendi
-- ✨ Step 8-10 workflow güncellendi
-- ✨ `references/slack_api_reference.md` oluşturuldu
-- ✨ mcp.json'a `SLACK_USER_TOKEN` field'ı eklendi
-- ✨ Slack token kurulum rehberi eklendi
-- ✨ Rate limit ve error handling dokumentasyonu eklendi
+### Son Güncellemeler (2026-03-24)
+- ✨ ekb plugin ile token-free Slack entegrasyonu
+- ✨ Private channels support (oxt-scalability-qa-support, vb.)
+- ✨ Step 8-10 workflow ekb plugin optimized
+- 🧹 Unused files temizlendi (README.md, slack_api_reference.md)
