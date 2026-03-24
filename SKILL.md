@@ -244,50 +244,52 @@ Slack API entegrasyonu için bkz: [references/slack_api_reference.md](references
 
 ## Step 8: Engineering Knowledge Base Plugin ile Slack Araması
 
-✨ **Bu adım, ekb plugin enabled ve çalışır durumda ise otomatik olarak çalışır.**
+✨ **Bu adım, ekb plugin enabled ise otomatik olarak çalışır. Token gerekmiyor!**
 
 ### Implementation (ekb Plugin)
 
 ```python
-# Engineering Knowledge Base Plugin kullan
-result = ekb_plugin.search_slack(
-    query=taskId,           # "SD-135447"
+# Engineering Knowledge Base Plugin - No manual token needed!
+# Plugin handles all authentication internally
+
+# Step 9a: Direct Task ID Araması
+slack_results_direct = ekb_plugin.search_slack(
+    query=taskId,           # "OPT-225067"
     count=20,
-    sort_by="timestamp"
+    type="direct_mention"
 )
 
-# Keyword araması (entity weighting ile)
+# Step 9b: Keyword Araması (entity weighting ile)
 keywords = extract_high_weight_keywords(task_summary)  # weight >= 2
-keyword_result = ekb_plugin.search_slack(
+slack_results_keywords = ekb_plugin.search_slack(
     query=" ".join(keywords),
     count=10,
-    sort_by="relevance"
+    type="keyword_match"
 )
 ```
 
-### Plugin Avantajları
+### ✨ Plugin Avantajları
 
-✅ **Otomatik error handling:**
-- `invalid_auth` → Uyarı ver ve atla
-- `missing_scope` → Token'da search:read yok uyarısı
-- `token_revoked` → Slack araması atlanır
+✅ **Token-free authentication:**
+- Plugin kendi credential'larını yönetiyor
+- mcp.json'da SLACK_USER_TOKEN'a gerek yok
+- Token revoke/expiry sorunları yok
 
 ✅ **Built-in features:**
-- Rate limiting (Tier 2: 20 req/min) otomatik yönetiliyor
+- Otomatik error handling
+- Rate limiting (Tier 2: 20 req/min) yönetiliyor
 - Duplikasyon kontrolü
 - Message deduplication
 - Automatic retry on rate limit
 
-✅ **Temiz ve maintainable:**
-- Tek plugin call
-- Hata handling plugin tarafından yapılıyor
-- Token management plugin tarafından yönetiliyor
+✅ **Production-ready:**
+- Temiz ve maintainable kod
+- Plugin tarafından düzenli güncelleniyor
+- Security updates otomatik
 
-### Fallback Davranışı
+### No Fallback Needed
 
-Eğer ekb plugin unavailable ise:
-- Manuel Slack API çağrıları yapılır (Step 8 alt bölüm)
-- `mcp.json`'dan `SLACK_USER_TOKEN` kullanılır
+✅ ekb plugin yeterli - manual Slack API çağrıları gereksiz!
 
 ## Step 9: Slack Sonuçlarını İşleme ve Filtreleme
 
@@ -345,38 +347,6 @@ Tablo formatı:
 - **Tarih:** ISO format tarihi (2026-03-20)
 - **Tür:** "Direct Mention" veya "Keyword Match"
 - **Link:** Slack message permalink (p1708123456789012 formatı)
-
-## Fallback: Manuel Slack API (Step 8-10 alternatifi)
-
-⚠️ **Eğer ekb plugin unavailable ise, manual API kullanılır:**
-
-### Manual Approach (Fallback)
-
-```bash
-# Direct Task ID Araması
-curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-     "https://slack.com/api/search.messages?query={taskId}&count=20"
-
-# Keyword Araması
-curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-     "https://slack.com/api/search.messages?query=keyword1+keyword2&count=10"
-```
-
-### Manual vs ekb Plugin
-
-| Özellik | Manual API | ekb Plugin |
-|---------|-----------|-----------|
-| **Primary Method** | ❌ Fallback | ✅ **Primary** |
-| **Error Handling** | Elle yapılır | Otomatik |
-| **Rate Limiting** | Elle manage et | Otomatik |
-| **Caching** | Implement lazım | Otomatik |
-| **Maintenance** | Elle fix et | Plugin updates |
-| **Code Lines** | ~50 | ~5 |
-
-### Preference
-
-🎯 **Primary:** ekb plugin (Step 8-10 tarafından kullanılıyor)
-🔄 **Fallback:** Manual API (plugin unavailable ise)
 
 ---
 

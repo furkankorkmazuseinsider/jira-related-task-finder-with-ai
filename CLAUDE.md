@@ -232,11 +232,12 @@ cat .gitignore | grep mcp.json
 ## 🔌 Plugin Integration (Engineering Knowledge Base)
 
 ✨ **Slack araması** engineering-knowledge-base plugin ile yapılıyor!
+✨ **Token-free!** Manual authentication gerekmiyor!
 
-### Primary: ekb Plugin (Step 8-10)
+### ekb Plugin (Step 8-10)
 
 **Plugin avantajları:**
-- 🔐 **Otomatik authentication** - Token management'ı plugin yönetiyor
+- 🔐 **Token-free authentication** - Plugin kendi credential'larını yönetiyor
 - ⚡ **Built-in caching** - Tekrarlayan sorgularda hızlı yanıt
 - 🛡️ **Error handling** - Rate limits, network errors otomatik yönetiliyor
 - 🔄 **Deduplication** - Duplikasyon otomatik kontrol edilir
@@ -247,34 +248,33 @@ cat .gitignore | grep mcp.json
 
 ```python
 # Step 8-10: ekb plugin ile Slack araması
+# NO MANUAL TOKEN NEEDED!
+
 ekb_result_direct = ekb_plugin.search_slack(
-    query=taskId,           # "SD-135447"
+    query=taskId,           # "OPT-225067"
     count=20,
-    sort_by="timestamp"
+    type="direct_mention"
 )
 
 ekb_result_keywords = ekb_plugin.search_slack(
     query=high_weight_keywords,  # entity_weights >= 2
     count=10,
-    sort_by="relevance"
+    type="keyword_match"
 )
 
-# Plugin otomatik yapıyor:
-# ✅ Error handling (invalid_auth, missing_scope, token_revoked)
+# Plugin handles everything:
+# ✅ Authentication (no token needed)
+# ✅ Error handling
 # ✅ Deduplication
 # ✅ Rate limiting
 # ✅ Caching
 ```
 
-### Fallback: Manual API (Plugin unavailable ise)
-
-Eğer ekb plugin unavailable ise Step 8'de manual curl çağrıları yapılır.
-
 **Status:**
-- ✅ **Primary:** ekb plugin (Step 8-10)
-- ✅ Fallback: Manual API (references/slack_api_reference.md)
-- ✅ Documentation updated
-- ✅ Production ready
+- ✅ **ekb plugin:** Active & token-free
+- ✅ **mcp.json:** SLACK_USER_TOKEN silinebilir (not needed)
+- ✅ **Documentation:** Updated
+- ✅ **Production:** Ready!
 
 Detay: [SKILL.md](SKILL.md) - Step 8-10 bakınız.
 
