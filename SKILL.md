@@ -242,75 +242,85 @@ Benzerlik skorunun nasıl hesaplandığı için bkz: [references/similarity_algo
 
 Slack API entegrasyonu için bkz: [references/slack_api_reference.md](references/slack_api_reference.md)
 
-## Step 8: Slack Token Doğrulama (İsteğe Bağlı)
+## Step 8: Engineering Knowledge Base Plugin ile Slack Araması
 
-⚠️ **Bu adım, SLACK_USER_TOKEN mcp.json'da tanımlı ve geçerli ise çalışır.**
+✨ **Bu adım, ekb plugin enabled ve çalışır durumda ise otomatik olarak çalışır.**
 
-1. `mcp.json`'dan `SLACK_USER_TOKEN` değerini oku
-2. Token'ın `xoxp-` prefix'iyle başladığını kontrol et
-   - Eğer `xoxb-` ile başlıyorsa: ⚠️ Uyarı ver - "Bot token (xoxb-) yerine User token (xoxp-) kullanıldı. search.messages çalışmaz"
-   - Eğer tanımlı değilse: "Slack token bulunamadı, Slack araması atlanıyor" mesajı ver ve Step 9'u atla
-3. Token geçerliliğini test et:
-```bash
-curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-     "https://slack.com/api/auth.test"
-```
-4. Response:
-   - `ok: true` → Devam et Step 9'a
-   - `ok: false, error: "invalid_auth"` → "Slack token geçersiz veya süresi dolmuş" uyarısı, Step 9'u atla
-   - `ok: false, error: "not_allowed_token_type"` → "Bot token kullanılmış, User token gerekli" uyarısı, Step 9'u atla
-   - `ok: false, error: "missing_scope"` → "Token'da search:read scope yok" uyarısı, Step 9'u atla
-
-## Step 9: Slack Araması - İki Sorgu Yapma
-
-⚠️ **Bu adım, Step 8 başarılı olduysa çalışır.**
-
-Slack'te iki arama yapılır:
-
-### 9a: Direct Task ID Araması
-```bash
-curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-     "https://slack.com/api/search.messages?query={taskId}&count=20&sort=timestamp&sort_dir=desc"
-```
-Örnek: `query=SD-135447`
-
-**Sonuç türü:** `Direct Mention` (task ID'nin exact olarak geçtiği mesajlar)
-
-### 9b: Keyword Araması
-Task summary'den entity weighting > 2 olan kelimeleri çıkar:
+### Implementation (ekb Plugin)
 
 ```python
-entity_weights = {
-    'coupon': 3, 'architect': 3, 'wrong': 3, 'crash': 3,
-    'template': 2, 'inapp': 2, 'journey': 2, 'event': 2,
-    'mobile': 2, 'web': 2, 'android': 2, 'bug': 2,
-    # ... diğerleri
+# Engineering Knowledge Base Plugin kullan
+result = ekb_plugin.search_slack(
+    query=taskId,           # "SD-135447"
+    count=20,
+    sort_by="timestamp"
+)
+
+# Keyword araması (entity weighting ile)
+keywords = extract_high_weight_keywords(task_summary)  # weight >= 2
+keyword_result = ekb_plugin.search_slack(
+    query=" ".join(keywords),
+    count=10,
+    sort_by="relevance"
+)
+```
+
+### Plugin Avantajları
+
+✅ **Otomatik error handling:**
+- `invalid_auth` → Uyarı ver ve atla
+- `missing_scope` → Token'da search:read yok uyarısı
+- `token_revoked` → Slack araması atlanır
+
+✅ **Built-in features:**
+- Rate limiting (Tier 2: 20 req/min) otomatik yönetiliyor
+- Duplikasyon kontrolü
+- Message deduplication
+- Automatic retry on rate limit
+
+✅ **Temiz ve maintainable:**
+- Tek plugin call
+- Hata handling plugin tarafından yapılıyor
+- Token management plugin tarafından yönetiliyor
+
+### Fallback Davranışı
+
+Eğer ekb plugin unavailable ise:
+- Manuel Slack API çağrıları yapılır (Step 8 alt bölüm)
+- `mcp.json`'dan `SLACK_USER_TOKEN` kullanılır
+
+## Step 9: Slack Sonuçlarını İşleme ve Filtreleme
+
+✨ **ekb Plugin otomatik olarak aşağıdaları yapar:**
+
+### 9a: Direct Task ID Araması (ekb)
+```
+Query: "{taskId}"  (örn: "SD-135447")
+Result Type: "Direct Mention"
+Max Results: 10 messages
+Sorting: timestamp descending
+```
+
+### 9b: Keyword Araması (ekb)
+```
+Query: "{keyword1} {keyword2} {keyword3}"  (entity weight >= 2)
+Result Type: "Keyword Match"
+Max Results: 5 messages
+Sorting: relevance score descending
+```
+
+### 9c: Duplikasyon Kontrolü (ekb)
+- Aynı mesaj her iki aramada da varsa: **Direct Mention** olarak işaretle
+- Plugin otomatik olarak duplikasyon temizliyor
+
+### 9d: Sonuç Filtreleme (ekb)
+```python
+results = {
+    'direct_mentions': [msg1, msg2, ...],  # max 10
+    'keyword_matches': [msg3, msg4, ...],  # max 5 (deduplicated)
+    'total': len(direct_mentions) + len(keyword_matches)
 }
-
-# Task: "Smart Design Creator Brand Settings BE Prompt Changes"
-# Çıkarılacak kelimeler: "smart" (2), "design" (2), "creator" (2), "brand" (2)
-# Arama sorgusu: "Smart Design Creator Brand"
 ```
-
-**Kural:** Summary'de 3'ten az yüksek ağırlıklı kelime varsa bu arama atlanır.
-
-```bash
-curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-     "https://slack.com/api/search.messages?query=Smart+Design+Creator+Brand&count=10&sort=score&sort_dir=desc"
-```
-
-**Sonuç türü:** `Keyword Match` (summary'deki kelimelerin geçtiği mesajlar)
-
-### 9c: Rate Limiting
-- İki arama arasında **1 saniye bekle** (Slack Tier 2: 20 requests/minute)
-- `rate_limited` hatası gelirse ilgili aramanın sonuçlarını atla ve devam et
-
-### 9d: Sonuç Filtreleme
-Slack mesajlarını şu kriterlere göre filtrele:
-- `total > 0` kontrolü yapılmış mı
-- **Direct mention araması:** Tüm eşleşmeler gösterilir (max 10 mesaj)
-- **Keyword match araması:** En fazla 5 mesaj (duplikasyon kontrolü yapıldıktan sonra)
-- Duplikasyon kontrolü: Aynı mesaj her iki aramada da gelmişse, Direct Mention olarak işaretle
 
 ## Step 10: Slack Sonuçlarını Tablo Olarak Göster
 
@@ -336,37 +346,37 @@ Tablo formatı:
 - **Tür:** "Direct Mention" veya "Keyword Match"
 - **Link:** Slack message permalink (p1708123456789012 formatı)
 
-## Engineering Knowledge Base Plugin Integration
+## Fallback: Manuel Slack API (Step 8-10 alternatifi)
 
-✨ **[YENİ]** Step 8-10 (Slack araması) engineering-knowledge-base plugin'i ile optimize edebiliir:
+⚠️ **Eğer ekb plugin unavailable ise, manual API kullanılır:**
 
-### Plugin ile Slack Arama Avantajları
+### Manual Approach (Fallback)
 
-| Özellik | Manuel API | ekb Plugin |
+```bash
+# Direct Task ID Araması
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/search.messages?query={taskId}&count=20"
+
+# Keyword Araması
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/search.messages?query=keyword1+keyword2&count=10"
+```
+
+### Manual vs ekb Plugin
+
+| Özellik | Manual API | ekb Plugin |
 |---------|-----------|-----------|
-| **Kurulum** | mcp.json'a token ekle | Otomatik (plugin enabled) |
-| **Error Handling** | Elle hata kontrol | Built-in error handling |
-| **Rate Limiting** | Elle manage et | Otomatik yönetim |
-| **Caching** | Implement etmek lazım | Built-in caching |
-| **Duplicate Detection** | Elle implement | Otomatik deduplikasyon |
+| **Primary Method** | ❌ Fallback | ✅ **Primary** |
+| **Error Handling** | Elle yapılır | Otomatik |
+| **Rate Limiting** | Elle manage et | Otomatik |
+| **Caching** | Implement lazım | Otomatik |
+| **Maintenance** | Elle fix et | Plugin updates |
+| **Code Lines** | ~50 | ~5 |
 
-### Kullanım
+### Preference
 
-```
-# ekb Plugin ile Slack araması
-mcp__plugin_engineering-knowledge-base_ekb__cloudflare
-action: Slack search
-query: {taskId} OR {keywords}
-```
-
-### Alternative Workflow
-
-Eğer ekb plugin enabled ise:
-1. Step 8-10 yapmak yerine plugin'i kullan
-2. Plugin aynı sonuçları döndürür
-3. Daha temiz ve maintainable
-
-**Not:** Manuel API approach (Step 8-10) her zaman kullanılabilir ve fallback olarak tercih edilebilir.
+🎯 **Primary:** ekb plugin (Step 8-10 tarafından kullanılıyor)
+🔄 **Fallback:** Manual API (plugin unavailable ise)
 
 ---
 

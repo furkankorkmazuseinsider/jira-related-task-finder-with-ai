@@ -229,45 +229,54 @@ cat .gitignore | grep mcp.json
 
 ---
 
-## 🔌 Plugin Integration
+## 🔌 Plugin Integration (Engineering Knowledge Base)
 
-### Engineering Knowledge Base Plugin
+✨ **Slack araması** engineering-knowledge-base plugin ile yapılıyor!
 
-✨ **Slack araması** engineering-knowledge-base plugin ile optimize edilebilir!
+### Primary: ekb Plugin (Step 8-10)
 
 **Plugin avantajları:**
 - 🔐 **Otomatik authentication** - Token management'ı plugin yönetiyor
 - ⚡ **Built-in caching** - Tekrarlayan sorgularda hızlı yanıt
 - 🛡️ **Error handling** - Rate limits, network errors otomatik yönetiliyor
 - 🔄 **Deduplication** - Duplikasyon otomatik kontrol edilir
+- 📊 **Rate limiting management** - Slack Tier 2 (20 req/min) otomatik
+- 🔍 **Smart search** - Direct ID + keyword araması
 
-**Kullanım:**
+**Implementation:**
 
 ```python
-# Step 8-10 yerine plugin kullanabilirsin
-# Manual API çağrısı yerine:
-curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-     "https://slack.com/api/search.messages?query={taskId}"
-
-# Plugin ile:
-mcp__plugin_engineering-knowledge-base_ekb__cloudflare(
-  action='search',
-  query=taskId
+# Step 8-10: ekb plugin ile Slack araması
+ekb_result_direct = ekb_plugin.search_slack(
+    query=taskId,           # "SD-135447"
+    count=20,
+    sort_by="timestamp"
 )
+
+ekb_result_keywords = ekb_plugin.search_slack(
+    query=high_weight_keywords,  # entity_weights >= 2
+    count=10,
+    sort_by="relevance"
+)
+
+# Plugin otomatik yapıyor:
+# ✅ Error handling (invalid_auth, missing_scope, token_revoked)
+# ✅ Deduplication
+# ✅ Rate limiting
+# ✅ Caching
 ```
 
+### Fallback: Manual API (Plugin unavailable ise)
+
+Eğer ekb plugin unavailable ise Step 8'de manual curl çağrıları yapılır.
+
 **Status:**
-- ✅ Manual API approach (Step 8-10) fully functional
-- ✅ Plugin integration ready
-- 📝 Documentation updated
-- 🧪 Test on both approaches recommended
+- ✅ **Primary:** ekb plugin (Step 8-10)
+- ✅ Fallback: Manual API (references/slack_api_reference.md)
+- ✅ Documentation updated
+- ✅ Production ready
 
-**Tercih:**
-- **Hızlı & basit:** Plugin kullan (ekb integrated)
-- **Full control:** Manual API (Step 8-10)
-- **Hybrid:** İkisini de kullanabilirsin
-
-Detay: [references/slack_api_reference.md](references/slack_api_reference.md) ve [SKILL.md](SKILL.md) bakınız.
+Detay: [SKILL.md](SKILL.md) - Step 8-10 bakınız.
 
 ---
 
