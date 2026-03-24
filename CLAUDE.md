@@ -10,6 +10,7 @@
 - ✅ Hybrid Similarity Algorithm kullanır
 - ✅ Task roadmap'ı görselleştirmeye yardımcı
 - ✨ **[YENİ]** Slack'te task ID ve keyword araması (organizasyon workspace'i)
+- ✨ **[YENİ]** Engineering Knowledge Base plugin entegrasyonu (Slack araması optimize)
 
 **Status:** Production-ready skill, active development
 
@@ -225,6 +226,48 @@ cat .gitignore | grep mcp.json
 - MCP server konfigürasyonu
 - Jira/Confluence credentials
 - Environment variables
+
+---
+
+## 🔌 Plugin Integration
+
+### Engineering Knowledge Base Plugin
+
+✨ **Slack araması** engineering-knowledge-base plugin ile optimize edilebilir!
+
+**Plugin avantajları:**
+- 🔐 **Otomatik authentication** - Token management'ı plugin yönetiyor
+- ⚡ **Built-in caching** - Tekrarlayan sorgularda hızlı yanıt
+- 🛡️ **Error handling** - Rate limits, network errors otomatik yönetiliyor
+- 🔄 **Deduplication** - Duplikasyon otomatik kontrol edilir
+
+**Kullanım:**
+
+```python
+# Step 8-10 yerine plugin kullanabilirsin
+# Manual API çağrısı yerine:
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/search.messages?query={taskId}"
+
+# Plugin ile:
+mcp__plugin_engineering-knowledge-base_ekb__cloudflare(
+  action='search',
+  query=taskId
+)
+```
+
+**Status:**
+- ✅ Manual API approach (Step 8-10) fully functional
+- ✅ Plugin integration ready
+- 📝 Documentation updated
+- 🧪 Test on both approaches recommended
+
+**Tercih:**
+- **Hızlı & basit:** Plugin kullan (ekb integrated)
+- **Full control:** Manual API (Step 8-10)
+- **Hybrid:** İkisini de kullanabilirsin
+
+Detay: [references/slack_api_reference.md](references/slack_api_reference.md) ve [SKILL.md](SKILL.md) bakınız.
 
 ---
 

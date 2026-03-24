@@ -336,6 +336,40 @@ Tablo formatı:
 - **Tür:** "Direct Mention" veya "Keyword Match"
 - **Link:** Slack message permalink (p1708123456789012 formatı)
 
+## Engineering Knowledge Base Plugin Integration
+
+✨ **[YENİ]** Step 8-10 (Slack araması) engineering-knowledge-base plugin'i ile optimize edebiliir:
+
+### Plugin ile Slack Arama Avantajları
+
+| Özellik | Manuel API | ekb Plugin |
+|---------|-----------|-----------|
+| **Kurulum** | mcp.json'a token ekle | Otomatik (plugin enabled) |
+| **Error Handling** | Elle hata kontrol | Built-in error handling |
+| **Rate Limiting** | Elle manage et | Otomatik yönetim |
+| **Caching** | Implement etmek lazım | Built-in caching |
+| **Duplicate Detection** | Elle implement | Otomatik deduplikasyon |
+
+### Kullanım
+
+```
+# ekb Plugin ile Slack araması
+mcp__plugin_engineering-knowledge-base_ekb__cloudflare
+action: Slack search
+query: {taskId} OR {keywords}
+```
+
+### Alternative Workflow
+
+Eğer ekb plugin enabled ise:
+1. Step 8-10 yapmak yerine plugin'i kullan
+2. Plugin aynı sonuçları döndürür
+3. Daha temiz ve maintainable
+
+**Not:** Manuel API approach (Step 8-10) her zaman kullanılabilir ve fallback olarak tercih edilebilir.
+
+---
+
 ## Örnek Kullanım
 
 Kullanıcı: "SD-135447 taskı ile ilişkili tüm taskları göster"
