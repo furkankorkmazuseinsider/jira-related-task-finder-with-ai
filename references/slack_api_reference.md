@@ -72,11 +72,13 @@ Response (hata - geçersiz token):
 
 ## Message Search Endpoint
 
-### Endpoint
+### Endpoint: search.messages (Workspace-wide)
 
 ```http
 GET https://slack.com/api/search.messages
 ```
+
+**⚠️ Sınırlama:** Belirli kanal'a filtrelenemez — tüm accessible channels'da arar.
 
 ### Query Parameters
 
@@ -87,6 +89,76 @@ GET https://slack.com/api/search.messages
 | `page` | integer | ❌ | Sayfa numarası (default 1) |
 | `sort` | string | ❌ | Sıralama: "score" (relevance) veya "timestamp" (default: "score") |
 | `sort_dir` | string | ❌ | Sıralama yönü: "asc" veya "desc" (default: "desc") |
+
+---
+
+## Channel History Endpoint (Channel-Specific Search)
+
+### Endpoint: conversations.history
+
+```http
+GET https://slack.com/api/conversations.history
+```
+
+**Avantaj:** Belirli bir kanal'daki TÜM mesajları arayabiliriz (search.messages'ın workspace-wide sınırlamasını aşarız).
+
+### Query Parameters
+
+| Parameter | Type | Required | Açıklama |
+|-----------|------|----------|----------|
+| `channel` | string | ✅ | Kanal ID'si (örn: "C0123456" veya kanal adı) |
+| `limit` | integer | ❌ | Max sonuç sayısı (default 100, max 1000) |
+| `oldest` | string | ❌ | Unix timestamp - belirtilen tarihten sonra |
+| `latest` | string | ❌ | Unix timestamp - belirtilen tarihten önce |
+
+### Örnek: Channel'da Task ID Araması
+
+```bash
+# 1. Kanal ID'sini al
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=100"
+
+# 2. Kanal history'sini fetch et ve client-side filter yap
+curl -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+     "https://slack.com/api/conversations.history?channel=C0123456&limit=100"
+
+# Client-side'da task ID kontrol et
+# for msg in response.messages:
+#     if "OPT-225067" in msg.text:
+#         results.append(msg)
+```
+
+### Response Schema
+
+```json
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "user": "U0123456",
+      "text": "OPT-225067 bu kanalda konuşuldu",
+      "ts": "1708123456.789012"
+    },
+    {
+      "type": "message",
+      "user": "U0234567",
+      "text": "builder integration sorunu",
+      "ts": "1707987654.654321"
+    }
+  ],
+  "has_more": false
+}
+```
+
+### Response Alanları
+
+| Alan | Açıklama |
+|------|----------|
+| `messages[].text` | Mesaj metni |
+| `messages[].user` | Gönderen user ID |
+| `messages[].ts` | Slack timestamp |
+| `has_more` | Daha fazla mesaj var mı (pagination) |
 
 ### Örnek: Task ID Araması
 

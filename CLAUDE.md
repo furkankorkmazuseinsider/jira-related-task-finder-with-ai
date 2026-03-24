@@ -276,7 +276,15 @@ ekb_result_keywords = ekb_plugin.search_slack(
 - ✅ **Documentation:** Updated
 - ✅ **Production:** Ready!
 
-Detay: [SKILL.md](SKILL.md) - Step 8-10 bakınız.
+**Known Limitation & Solution:**
+- ⚠️ `search.messages` API workspace-wide arama yapar — belirli kanal'a filtrelenemez
+- ✅ **Çözüm:** High-relevance channels için `conversations.history` endpoint kullanılıyor
+  - Target channels: `oxt-scalability-qa-support`, `oxt-personalization-dev`, `personalization-bugs`
+  - Client-side filtering ile task ID/keywords eşleşme kontrol ediliyor
+  - Dedupe: Global search ile combined results duplikasyon kontrolü yapılıyor
+
+Detay: [SKILL.md](SKILL.md) - Step 9b-ii bakınız.
+[slack_api_reference.md](references/slack_api_reference.md) - `conversations.history` endpoint
 
 ---
 
