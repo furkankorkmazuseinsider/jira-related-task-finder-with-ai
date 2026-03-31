@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 try:
-    import requests
+    import requests # type: ignore
 except ImportError:
     print("Error: 'requests' library not found. Install: pip install requests", file=sys.stderr)
     sys.exit(1)
