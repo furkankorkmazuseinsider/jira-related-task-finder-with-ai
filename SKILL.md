@@ -240,116 +240,137 @@ Detaylı API dokümantasyonu için bkz: [references/api_reference.md](references
 
 Benzerlik skorunun nasıl hesaplandığı için bkz: [references/similarity_algorithm.md](references/similarity_algorithm.md)
 
-## Step 8: Engineering Knowledge Base Plugin ile Slack Araması
+## Step 8: Slack'te Task Araması
 
-✨ **Bu adım, ekb plugin enabled ise otomatik olarak çalışır. Token gerekmiyor!**
+✨ **SLACK_USER_TOKEN mcp.json'da tanımlı ise, Slack araması otomatik olarak yapılır!**
 
-### Implementation (ekb Plugin)
+### Implementation (Python - slack_search.py)
 
 ```python
-# Engineering Knowledge Base Plugin - No manual token needed!
-# Plugin handles all authentication internally
+# slack_search.py - Slack User Token ile search
+from slack_search import search_task_on_slack
 
-# Step 9a: Direct Task ID Araması
-slack_results_direct = ekb_plugin.search_slack(
-    query=taskId,           # "OPT-225067"
-    count=20,
-    type="direct_mention"
+# Step 8a: Direct Task ID Araması
+results = search_task_on_slack(
+    task_id="SD-134980",
+    task_summary="Wrong coupon distributed in In-App template"
 )
 
-# Step 9b: Keyword Araması (entity weighting ile)
-keywords = extract_high_weight_keywords(task_summary)  # weight >= 2
-slack_results_keywords = ekb_plugin.search_slack(
-    query=" ".join(keywords),
-    count=10,
-    type="keyword_match"
-)
+# Returns:
+# {
+#   'enabled': True/False,
+#   'direct_mentions': [{channel, author, date, content, message_id}, ...],
+#   'keyword_matches': [{...}, ...],
+#   'total_found': int,
+#   'status': 'success'/'no_results'/'auth_failed'/'token_missing'
+# }
 ```
 
-### ✨ Plugin Avantajları
+### ✨ Avantajları
 
-✅ **Token-free authentication:**
-- Plugin kendi credential'larını yönetiyor
-- mcp.json'da SLACK_USER_TOKEN'a gerek yok
-- Token revoke/expiry sorunları yok
+✅ **Flexible token management:**
+- mcp.json'da SLACK_USER_TOKEN varsa otomatik kullanılır
+- Token yoksa gracefully fallback (normal Jira araması devam eder)
+- Başkaları token olmadan da skill'i kullanabilir
 
 ✅ **Built-in features:**
-- Otomatik error handling
-- Rate limiting (Tier 2: 20 req/min) yönetiliyor
-- Duplikasyon kontrolü
-- Message deduplication
-- Automatic retry on rate limit
+- Direct task ID mention arama (SD-134980)
+- Keyword matching (high-weight terms from entity_weights)
+- Automatic deduplication
+- Channel & author bilgisi
+- Timestamp formatlanması
+- Error handling (auth failures, rate limits, vb.)
 
-✅ **Production-ready:**
-- Temiz ve maintainable kod
-- Plugin tarafından düzenli güncelleniyor
-- Security updates otomatik
+✅ **Secure & Production-ready:**
+- Token sadece mcp.json'dan okunur
+- API errors gracefully handled
+- No fallback breaking - Slack fail eder ama Jira results devam eder
+- 10 saniye timeout (request hanging prevent)
 
-### No Fallback Needed
+### Setup (Başkaları için)
 
-✅ ekb plugin yeterli - manual Slack API çağrıları gereksiz!
+1. https://api.slack.com/apps → Create New App
+2. OAuth & Permissions → User Token Scopes → `search:read` ekle
+3. Install to Workspace → User OAuth Token kopyala
+4. mcp.json'a ekle:
+```json
+"SLACK_USER_TOKEN": "xoxp-..."
+```
+
+Bundan sonra Slack araması otomatik çalışır!
 
 ## Step 9: Slack Sonuçlarını İşleme ve Filtreleme
 
-✨ **ekb Plugin otomatik olarak aşağıdaları yapar:**
+✨ **slack_search.py otomatik olarak aşağıdaları yapar:**
 
-### 9a: Direct Task ID Araması (ekb)
+### 9a: Direct Task ID Araması
 ```
-Query: "{taskId}"  (örn: "SD-135447")
-Result Type: "Direct Mention"
-Max Results: 10 messages
+Query: "{taskId}"  (örn: "SD-134980")
+Type: "Direct mention" (task ID exact match)
+Max Results: 15 messages
+Example: "SD-134980 hakkında sorgulandığında..."
 Sorting: timestamp descending
 ```
 
-### 9b: Keyword Araması (ekb Plugin)
+### 9b: Keyword Araması (slack_search.py)
 ```
-Query: "{keyword1} {keyword2} {keyword3}"  (entity weight >= 2)
+Query: "{keyword1} OR {keyword2} OR {keyword3}"  (entity weight >= 2)
 Result Type: "Keyword Match"
-Max Results: 5 messages
-Sorting: relevance score descending
+Max Results: 10 messages
+Sorting: timestamp descending
 
-✨ ekb Plugin Features:
-- Public channels araması
-- Private channels araması (token-free, ekb credentials ile)
-- Duplikasyon otomatik kontrol
+Keywords extract edilir:
+- coupon (weight: 3), architect (weight: 3), wrong (weight: 3)
+- template (weight: 2), inapp (weight: 2), journey (weight: 2)
+- Maksimum 5 keyword per search
 ```
 
-### 9c: Duplikasyon Kontrolü (ekb)
-- Aynı mesaj her iki aramada da varsa: **Direct Mention** olarak işaretle
-- Plugin otomatik olarak duplikasyon temizliyor
+**Örnek:** SD-134980 "Wrong coupon coupon distributed..."
+- Keywords: ["coupon", "architect", "wrong", "template", "inapp"]
+- Query: `"coupon" OR "architect" OR "wrong" OR "template" OR "inapp"`
 
-### 9d: Sonuç Filtreleme (ekb)
+### 9c: Duplikasyon Kontrolü (slack_search.py)
+- Direct mentions'da bulunan mesajlar, keyword matches'ten çıkarılır
+- Message ID: `{channel}/{timestamp}` ile unique identification
+- Deduplication otomatik yapılır
+
+### 9d: Sonuç Filtreleme (slack_search.py)
 ```python
 results = {
-    'direct_mentions': [msg1, msg2, ...],  # max 10
-    'keyword_matches': [msg3, msg4, ...],  # max 5 (deduplicated)
-    'total': len(direct_mentions) + len(keyword_matches)
+    'direct_mentions': [msg1, msg2, ...],  # max 15, raw
+    'keyword_matches': [msg3, msg4, ...],  # max 10, deduplicated
+    'total_found': int,
+    'status': 'success'/'no_results'/'auth_failed'/'token_missing'
 }
 ```
+
+Eğer token yoksa: `'status': 'token_missing'` ve tabloya eklenmez (graceful fallback)
 
 ## Step 10: Slack Sonuçlarını Tablo Olarak Göster
 
 Slack sonuçları, Jira ilişkili tasklar tablosundan **ayrı** bir bölüm olarak gösterilir.
 
-Tablo formatı:
+### Tablo Formatı
 
 ```
-## Slack Mentions ({taskId})
+## 💬 Slack Mentions (SD-134980)
 
-| Kanal | Mesaj Özeti | Gönderen | Tarih | Tür | Link |
-|-------|-------------|----------|-------|-----|------|
-| #team-engineering | "SD-135447 fix'i review'a açtım..." | furkan.korkmaz | 2026-03-20 | Direct Mention | [link] |
-| #product-updates | "Smart Design Creator brand ayarları..." | ayse.yilmaz | 2026-03-18 | Keyword Match | [link] |
-| #releases | "SD-135447 sprint'e alındı" | mehmet.demir | 2026-03-15 | Direct Mention | [link] |
+| Channel | Message (first 150 chars) | Author | Date | Type | Thread |
+|---------|---------------------------|--------|------|------|--------|
+| oxt-scalability-qa-support | "SD-134980 hakkında yapılan araştırmalar... [coupon backend...]" | furkan.korkmaz | 2026-02-04 14:22 | Direct | [View] |
+| product-engineering | "architect coupon binding issue... [permission problem...]" | ayse.yilmaz | 2026-02-03 10:15 | Keyword | [View] |
 ```
 
 ### Tablo Detayları
-- **Kanal:** Slack channel adı (#team-engineering)
-- **Mesaj Özeti:** Mesajın ilk 50-60 karakteri (... ile sonlandırıl)
-- **Gönderen:** Slack username'i (furkan.korkmaz)
-- **Tarih:** ISO format tarihi (2026-03-20)
-- **Tür:** "Direct Mention" veya "Keyword Match"
-- **Link:** Slack message permalink (p1708123456789012 formatı)
+- **Channel:** Slack channel adı (# işareti olmadan)
+- **Message:** Mesajın ilk 150 karakteri, truncated
+- **Author:** Slack user'ın real_name'i
+- **Date:** ISO format tarihi ve saat (2026-02-04 14:22)
+- **Type:** "Direct" (task ID exact match) veya "Keyword" (high-weight terms)
+- **Thread:** Slack'te açılabilir link (channel/timestamp)
+
+### Token Yoksa
+Eğer SLACK_USER_TOKEN mcp.json'da tanımlı değilse, bu section tamamen gösterilmez. Sadece Jira results sunulur.
 
 ---
 
