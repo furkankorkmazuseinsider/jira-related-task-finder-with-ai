@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Jira Task Finder",
+  "version": "0.1.0",
+  "description": "Find related Jira tasks instantly on Jira and Slack pages",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.atlassian.net/*",
+    "https://*.slack.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.atlassian.net/*"],
+      "js": ["content-jira.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.slack.com/*"],
+      "js": ["content-slack.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Jira Task Finder",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
