@@ -1,247 +1,108 @@
-# 🔍 Jira Related Task Finder with AI + Slack Integration
+# Jira Related Task Finder
 
-Verilen bir Jira task ID'si ile ilişkili **tüm taskları** otomatik olarak bul:
-- ✅ **Jira Links** (Blocks, Blocked By, Relates to, Parent, Subtasks, Epic)
-- 🤖 **AI-based similarity** (Description, Summary, Comments)
-- 💬 **Slack mentions** (Direct task ID, Keywords - Optional)
+Bir Jira task ID'si verildiğinde, o task ile ilişkili tüm taskları bulan Claude Code skill'i.
 
----
+Jira link ilişkileri, AI benzerlik analizi, semantic search, PR/kod analizi, Sentry bug korelasyonu, Slack mention'ları ve Confluence dokümanlarını birleştirerek kapsamlı bir ilişki haritası çıkarır.
 
-## 📋 Quick Start (30 secs)
+## Gereksinimler
 
-### For Jira Only (No Slack)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI kurulu olmalı
+- ekb (engineering-knowledge-base) MCP plugin'i aktif olmalı
+- Jira Cloud hesabı ve API token'ı
+
+## Kurulum
+
+### 1. Repo'yu klonla
 
 ```bash
-/jira-related-task-finder SD-134980
+git clone <repo-url>
+cd jira-related-task-finder-with-ai
 ```
 
-**Outputs:**
-- Jira ilişkili tasklar tablosu
-- AI benzerlik skorları
-- Comment referansları
+### 2. Jira credentials'ı ayarla
 
-Credentials: mcp.json'da zaten var (JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN)
-
-### For Jira + Slack (Optional)
-
-1. [CLAUDE.md - Slack Token Yönetimi](CLAUDE.md#token-yönetimi) adımları takip et
-2. mcp.json'a `SLACK_USER_TOKEN` ekle
-3. Aynı command çalıştır → Slack results da görünür
-
----
-
-## 📁 Files Guide
-
-| File | Purpose |
-|------|---------|
-| **CLAUDE.md** | Claude Code configuration & credentials setup |
-| **SKILL.md** | Skill workflow (Step 1-10), algorithms, output format |
-| **slack_search.py** | 🆕 Slack search implementation (Python) |
-| **references/api_reference.md** | Jira REST API endpoints |
-| **references/similarity_algorithm.md** | Hybrid similarity algorithm details |
-
----
-
-## 🚀 Features
-
-### 1. Jira Direct Links
-```
-Blocks / Blocked By / Relates to / Parent / Subtasks / Same Epic
-```
-
-### 2. AI Similarity Analysis
-```
-Hybrid Algorithm:
-- Keyword matching (weighted)
-- N-gram patterns
-- Component matching (domain-specific)
-- Score: 0.0 → 1.0 (threshold: 0.12)
-```
-
-### 3. Comment Analysis
-```
-Regex: [A-Z]+-\d+
-Finds: Other task IDs mentioned in comments
-```
-
-### 4. Slack Integration (Optional)
-```
-✅ Token-based (optional - no breaking if missing)
-✅ Direct task ID mentions (e.g., "SD-134980")
-✅ Keyword search (high-weight terms from entity_weights)
-✅ Deduplication & formatting
-```
-
----
-
-## 🔧 Setup
-
-**Jira Only:** Credentials already in mcp.json → Just use the skill!
-
-**Jira + Slack (Optional):**
-1. See [CLAUDE.md - Slack Token Yönetimi](CLAUDE.md#token-yönetimi)
-2. Add `SLACK_USER_TOKEN` to mcp.json
-3. Done! Slack results show automatically
-
----
-
-## 📊 Output Example
-
-```
-## Related Tasks for SD-134980
-
-| Task Key | Summary | Status | Type | Relation | Score |
-|----------|---------|--------|------|----------|-------|
-| SD-130279 | [KEY CUSTOMER] SamsungHK \| Wrong coupon ... | Released | Bug | AI-Comment | - |
-| SD-132150 | forced logout from panel upon redirection | Released | Bug | AI-Comment | - |
-| SD-134505 | Inapp Element and Templates - Permissions | Design UAT | Improvement | AI-Comment | - |
-
-## 💬 Slack Mentions (SD-134980)
-
-| Channel | Message | Author | Date | Type |
-|---------|---------|--------|------|------|
-| oxt-scalability-qa-support | "SD-134980 hakkında... coupon backend..." | furkan.korkmaz | 2026-02-04 | Direct |
-| product-engineering | "architect coupon binding... permission..." | ayse.yilmaz | 2026-02-03 | Keyword |
-```
-
----
-
-## 🛠️ Configuration
-
-### mcp.json Structure
+Proje kök dizininde `mcp.json` dosyası oluştur:
 
 ```json
 {
   "mcpServers": {
-    "jira-related-task-finder": {
+    "jira": {
       "env": {
-        "JIRA_URL": "https://winsider.atlassian.net",
-        "JIRA_USERNAME": "your-email@example.com",
-        "JIRA_API_TOKEN": "ATATT3x...",
-        "SLACK_USER_TOKEN": "xoxp-..." // Optional
+        "JIRA_URL": "sirket.atlassian.net",
+        "JIRA_USERNAME": "email@sirket.com",
+        "JIRA_API_TOKEN": "your-api-token"
       }
     }
   }
 }
 ```
 
-### Required Credentials
+**API token almak için:** [Atlassian API Token](https://id.atlassian.com/manage-profile/security/api-tokens) sayfasından oluşturabilirsin.
 
-- **JIRA_URL**: Jira Cloud instance URL
-- **JIRA_USERNAME**: Jira account email
-- **JIRA_API_TOKEN**: [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
+> **Not:** `mcp.json` dosyası `.gitignore`'da tanımlıdır, commit edilmez.
 
-### Optional Credentials
+### 3. ekb plugin'i kontrol et
 
-- **SLACK_USER_TOKEN**: User OAuth Token with `search:read` scope (see [CLAUDE.md - Slack Token Yönetimi](CLAUDE.md#token-yönetimi))
+Claude Code içinde ekb plugin'in aktif olduğunu doğrula. Skill, 9 farklı ekb tool'u kullanır:
 
----
+| Tool | Amaç |
+|------|------|
+| `jira` | Task detay, JQL arama |
+| `semantic_search` | Vektörel benzerlik (Jira + Slack) |
+| `github` | PR detay, değişen dosyalar |
+| `git` | Dosya geçmişi |
+| `regex_search` | Exact match (task ID, PR URL) |
+| `sentry` | Bug korelasyonu |
+| `lookup` | Confluence sayfa içeriği |
+| `hybrid_search` | Keyword + vektör fusion |
+| `chunk` | Slack mesaj context genişletme |
 
-## 🔒 Security
+## Kullanım
 
-### Credentials Handling
-- ⚠️ **mcp.json contains tokens** - Add to `.gitignore`!
-- Never commit credentials to git
-- Tokens are read-only (search:read scope only for Slack)
+Claude Code içinde:
 
-### Token Management
-- Use **User tokens** (xoxp-) not Bot tokens (xoxb-)
-- Tokens can be rotated anytime
-- Slack failure doesn't break Jira flow (graceful fallback)
-
----
-
-## 🧪 Testing
-
-### Test Jira Connection
-```bash
-curl -u "JIRA_USERNAME:JIRA_API_TOKEN" \
-  "https://JIRA_URL/rest/api/3/myself"
+```
+/jira-related-task-finder SD-135447
 ```
 
-### Test Slack Connection (if enabled)
-```bash
-python3 slack_search.py SD-135447 "Your task summary"
+Skill şunları yapar:
+1. Task detaylarını çeker
+2. Jira link ilişkilerini çıkarır (Blocks, Relates to, Same Epic, vb.)
+3. AI benzerlik analizi yapar (semantic search + IDF hybrid skor)
+4. Cross-project arama yapar
+5. Initiative/cluster tespiti yapar
+6. Comment'lerdeki task referanslarını bulur
+7. PR ve kod analizi yapar
+8. Sentry bug korelasyonu yapar (sadece Bug tipi)
+9. Confluence dokümanlarını arar
+10. 7 katmanlı Slack araması yapar
+11. Link önerileri üretir
+12. Raporu `reports/<TASK-ID>-analysis.md` dosyasına kaydeder
+13. Sonuçları tablolar halinde sunar
+
+## Proje Yapısı
+
+```
+CLAUDE.md                                    # Claude Code proje kuralları
+README.md                                    # Bu dosya
+mcp.json                                     # Jira credentials (gitignore)
+.claude/skills/jira-related-task-finder/
+  SKILL.md                                   # Skill workflow (13 adım)
+  references/similarity_algorithm.md         # Benzerlik algoritması açıklaması
+  scripts/build_idf.py                       # IDF cache oluşturucu
+reports/                                     # Analiz raporları (otomatik oluşur)
 ```
 
-Expected output: JSON with `"status": "success"` and results
+## IDF Cache (Opsiyonel)
 
----
-
-## 📚 Advanced
-
-### Customizing Similarity Weights
-
-Edit entity_weights in:
-- `SKILL.md` (documentation)
-- `slack_search.py` (implementation)
-- Or reference: `references/similarity_algorithm.md`
-
-### Using in CI/CD
+Benzerlik analizi için proje bazlı IDF cache oluşturabilirsin. Cache olmadan da çalışır ancak cache ile daha doğru sonuç verir.
 
 ```bash
-# Get task results as JSON
-python3 slack_search.py SD-135447 "Summary" | jq '.total_found'
+# Hızlı bootstrap (son 50 task)
+python .claude/skills/jira-related-task-finder/scripts/build_idf.py SD --quick
+
+# Tam corpus (son 1 yıl)
+python .claude/skills/jira-related-task-finder/scripts/build_idf.py SD --days 365
 ```
 
----
-
-## 🆘 Troubleshooting
-
-### Jira Connection Failed
-→ Check JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN in mcp.json
-
-### Slack Not Showing (even if enabled)
-→ Check CLAUDE.md - Slack Token Uyarısı bölümü
-
-### Wrong Results
-→ Adjust similarity threshold in SKILL.md (currently 0.12)
-
----
-
-## 📖 Learn More
-
-- [SKILL.md](SKILL.md) - Full workflow documentation
-- [CLAUDE.md](CLAUDE.md) - Claude Code configuration & Slack setup
-- [references/similarity_algorithm.md](references/similarity_algorithm.md) - Algorithm details
-
----
-
-## 🤝 Contributing
-
-Want to improve the skill? Check:
-1. [CLAUDE.md#contribution-guidelines](CLAUDE.md)
-2. Update relevant files (SKILL.md, CLAUDE.md, code)
-3. Test Jira + Slack flows
-4. Document changes
-
----
-
-## 📝 Version History
-
-### v2.0 (Current) - Slack Integration
-- ✨ Added Slack search capability
-- ✨ Created slack_search.py implementation
-- ✨ Optional token (graceful fallback if missing)
-- ✨ Minimal documentation (CLAUDE.md + README.md)
-
-### v1.0 - Initial Release
-- Jira link detection
-- AI similarity analysis (hybrid algorithm)
-- Comment analysis
-
----
-
-## 📧 Questions?
-
-Refer to:
-- **Setup Q's** → CLAUDE.md / README.md
-- **Algorithm Q's** → SKILL.md / references/
-- **Configuration Q's** → CLAUDE.md
-- **Code Q's** → slack_search.py comments
-
----
-
-**Made with ❤️ for collaborative task discovery**
-
-Last updated: 2026-03-31
+Cache dosyaları `.claude/skills/jira-related-task-finder/scripts/cache/` altına kaydedilir.
