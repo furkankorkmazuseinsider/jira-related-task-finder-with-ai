@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jira Task Finder - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <div class="settings-box">
+      <h1>⚙️ Jira Task Finder Settings</h1>
+
+      <form id="settings-form">
+        <div class="form-group">
+          <label for="jira-url">
+            <span class="label-text">Jira URL</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="url"
+            id="jira-url"
+            placeholder="https://yourcompany.atlassian.net"
+            required
+          >
+          <small>Example: https://winsider.atlassian.net</small>
+        </div>
+
+        <div class="form-group">
+          <label for="jira-username">
+            <span class="label-text">Jira Email</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="email"
+            id="jira-username"
+            placeholder="your.email@company.com"
+            required
+          >
+          <small>Your Jira Cloud email</small>
+        </div>
+
+        <div class="form-group">
+          <label for="jira-token">
+            <span class="label-text">Jira API Token</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="password"
+            id="jira-token"
+            placeholder="••••••••••••••••••••••••"
+          >
+          <small>
+            Get from: <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Atlassian Security</a>
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="show-token">
+            <span>Show token</span>
+          </label>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+          <button type="button" class="btn btn-secondary" onclick="testConnection()">
+            🔗 Test Connection
+          </button>
+        </div>
+
+        <div id="status-message" class="status-message"></div>
+      </form>
+
+      <hr>
+
+      <div class="info-section">
+        <h2>ℹ️ About This Extension</h2>
+        <ul>
+          <li>🔗 Find related Jira tasks instantly</li>
+          <li>🤖 AI-powered similarity analysis</li>
+          <li>💾 Secure credential storage (Chrome encrypted)</li>
+          <li>⚡ Fast caching (1 hour)</li>
+          <li>🔒 No data sent to external servers</li>
+        </ul>
+      </div>
+
+      <div class="footer">
+        <p>Version 0.1.0 | Jira Task Finder</p>
+        <p>
+          <a href="https://github.com/useinsider/jira-task-finder" target="_blank">GitHub</a> •
+          <a href="mailto:support@example.com">Support</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
